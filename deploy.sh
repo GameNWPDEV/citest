@@ -1,19 +1,24 @@
-#!/bin/bash
+name: SSH deploy on push
+on:
+  push:
+    branches:
+      - main 
 
-# Переменные окружения
-SERVER_USER="ваш-пользователь-на-сервере"
-SERVER_IP="ваш-IP-сервера"
-REMOTE_DIR="/путь/к/вашему/wordpress"
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
 
-# Копирование файлов на сервер
-rsync -avz --exclude '.git' --exclude '.github' . $SERVER_USER@$SERVER_IP:$REMOTE_DIR
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
 
-# Обновление зависимостей и прав на сервере
-ssh $SERVER_USER@$SERVER_IP << EOF
-cd $REMOTE_DIR
-composer install
-chown -R www-data:www-data .
-chmod -R 755 .
-EOF
-
-echo "Deployment finished successfully."
+    - name: Deploy wp-content to server
+      env:
+        DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
+        SERVER_USER: ${{ secrets.SERVER_USER }}
+        SERVER_HOST: ${{ secrets.SERVER_HOST }}
+        SERVER_PATH: ${{ secrets.SERVER_PATH }}
+      run: |
+        echo "$DEPLOY_KEY" > deploy_key
+        chmod 600 deploy_key
+        rsync -avz -e "ssh -i deploy_key -o StrictHostKeyChecking=no" / $SERVER_USER@$SERVER_HOST:$SERVER_PATH
